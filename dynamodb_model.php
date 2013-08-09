@@ -132,8 +132,6 @@ array(
 				'AttributeValueList'	=> $attrValues
 			);
 		}
-		//echo "<pre>";
-		//var_dump($formattedCondition);
 		return $formattedCondition;
 	}
 
