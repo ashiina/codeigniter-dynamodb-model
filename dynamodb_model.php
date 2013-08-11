@@ -48,7 +48,7 @@ array(
 				'KeyConditions'	=> $this->_formatQueryCondition($conditions)
 			));
 		} catch (Exception $e) {
-			var_dump($e->getMessage());
+			error_log($e->getMessage());
 		}
 		return $this->_formatResult($qResult);
 	}
@@ -74,13 +74,12 @@ array(
 	public function putItem ($tableName, $item) {
 		try {
 			$formattedItem = $this->_formatPutItem($item);
-			var_dump($formattedItem);
 			$this->ddbClient->putItem(array(
 				'TableName'		=> $tableName,
 				'Item'			=> $formattedItem
 			));
 		} catch (Exception $e) {
-			var_dump($e->getMessage());
+			error_log($e->getMessage());
 		}
 	}
 
