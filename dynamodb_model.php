@@ -22,6 +22,16 @@ class Dynamodb_model extends CI_Model {
 	protected $BATCH_LIMIT = 25;
 
 	/*
+	 * batch execution limit
+	 */
+	protected $BATCH_RETRY_MAXIMUM = 1000;
+
+	/*
+	 * max item size
+	 */
+	public $maxItemBytes = 65535;
+
+	/*
 	 * Constructor
 	 */
 	public function __construct() {
@@ -100,6 +110,23 @@ array(
 		}
 	}
 
+
+	public function deleteItem ($tableName, $conditions) {
+		try {
+			$formattedItem = $this->_formatPutItem($conditions);
+			$this->ddbClient->deleteItem(array(
+				'TableName'		=> $tableName,
+				'Key'			=> $formattedItem
+			));
+
+			return true;
+		} catch (Exception $e) {
+			error_log($e->getMessage());
+			var_dump($formattedItem);
+			return false;
+		}
+	}
+
 	/*
 	 * batchWriteItem wrapper for dynamodb, only for putItem requests.
 	 * It will take an array of assoc-arrays for items to insert, 
@@ -140,7 +167,7 @@ array(
 
 			// execute on each batch limit
 			if (count($formattedItems) >= $this->BATCH_LIMIT) {
-				error_log("execute batch write: $i");
+				error_log("execute batch write: $i/".count($formattedItems));
 				$this->_executeBatchWriteItem($tableName, $formattedItems);
 				unset($formattedItems);
 				$formattedItems = array();
@@ -154,11 +181,27 @@ array(
 
 	protected function _executeBatchWriteItem ($tableName, $formattedItems) {
 		try {
-			$this->ddbClient->batchWriteItem(array(
+			$unprocessedItems = array();
+			$r = $this->ddbClient->batchWriteItem(array(
 				'RequestItems'	=> array(
 					$tableName => $formattedItems
 				)
 			));
+			$unprocessedItems = $r['UnprocessedItems'];
+			$retryCount = 0;
+			while ($unprocessedItems) {
+				error_log("[$retryCount] retry write: ".count($unprocessedItems[$tableName]));
+				$_r = $this->ddbClient->batchWriteItem(array(
+					'RequestItems'	=> $unprocessedItems
+				));
+				$unprocessedItems = $_r['UnprocessedItems'];
+				unset($_r);
+				$retryCount++;
+				if ($retryCount > $this->BATCH_RETRY_MAXIMUM) {
+					error_log("too many retry... $retryCount");
+					break;
+				}
+			}
 		} catch (Exception $e) {
 			error_log($e->getMessage());
 		}
