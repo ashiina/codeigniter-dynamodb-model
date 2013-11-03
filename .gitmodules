@@ -1,0 +1,3 @@
+[submodule "php-awslib"]
+	path = php-awslib
+	url = https://github.com/ashiina/php-awslib.git
